@@ -11,3 +11,17 @@ services:
     volumes:
       - ./cookie:/app/cookie
     restart: always
+
+  nodeseek-commenter:
+    image: nodeseek-signin:latest
+    container_name: nodeseek-commenter
+    command: ["python", "comment_scheduler.py"]
+    environment:
+      - IN_DOCKER=true
+    env_file:
+      - .env
+    volumes:
+      - ./cookie:/app/cookie
+    depends_on:
+      - nodeseek-signin
+    restart: always

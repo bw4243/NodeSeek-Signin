@@ -204,7 +204,7 @@ def session_login(user, password, solver_type, api_base_url, client_key):
         return None
 
     session = requests.Session(impersonate="chrome110")
-    session.get("https://www.nodeseek.com/signIn.html")
+    session.get("https://www.nodeseek.com/signIn.html", timeout=60)
 
     data = {
         "username": user,
@@ -226,7 +226,7 @@ def session_login(user, password, solver_type, api_base_url, client_key):
         'Content-Type': "application/json"
     }
     try:
-        response = session.post("https://www.nodeseek.com/api/account/signIn", json=data, headers=headers)
+        response = session.post("https://www.nodeseek.com/api/account/signIn", json=data, headers=headers, timeout=60)
         resp_json = response.json()
         if resp_json.get("success"):
             cookies = session.cookies.get_dict()
