@@ -359,13 +359,15 @@ class NodeSeekClient:
             character_pool = _string.ascii_letters + _string.digits
             return "".join(_random.choice(character_pool) for _ in range(length))
 
-        csrf_token = csrf or self._extract_csrf_from_cookie()
-        used_fallback_csrf = False
-        if not csrf_token:
+        override_csrf = os.getenv("NS_COMMENT_STATIC_CSRF", "").strip()
+        csrf_token = ""
+        if override_csrf:
+            csrf_token = override_csrf
+        elif isinstance(csrf, str) and csrf.strip():
+            csrf_token = csrf.strip()
+        else:
+            # NodeSeek ??? scsrf-token ?????????????????????
             csrf_token = generate_csrf_token(16)
-            used_fallback_csrf = True
-        if used_fallback_csrf:
-            print("[NodeSeek] Missing CSRF token, using random placeholder; request may be blocked")
 
         payload_base = {
             "content": content,

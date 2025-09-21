@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import json
+import math
 import os
 import random
 import time
@@ -121,9 +122,22 @@ def run_comment_for_account(ns_cookie: str, account_label: str, dry_run: bool = 
             tid = int(m_p.group(1)) if m_p else (int(m_t.group(1)) if m_t else None)
             targets.append({"title": u, "url": u, "thread_id": tid})
     else:
-        targets = _pick_targets(client, category_slug, max_threads=daily_limit)
+        max_candidates_env = os.getenv("NS_COMMENT_MAX_CANDIDATES", "").strip()
+        try:
+            max_candidates = int(max_candidates_env) if max_candidates_env else None
+        except Exception:
+            max_candidates = None
+        if not max_candidates:
+            if daily_limit > 0:
+                lower_bound = max(daily_limit * 2, daily_limit + min_sample)
+                suggested = math.ceil(daily_limit * 2.5)
+                upper_bound = max(daily_limit * 3, lower_bound)
+                max_candidates = min(max(lower_bound, suggested), upper_bound)
+            else:
+                max_candidates = max(6, min_sample * 2)
+        targets = _pick_targets(client, category_slug, max_threads=max_candidates)
     if not targets:
-        print(f"[{account_label}] 未找到可评论的帖子")
+        print(f"[{account_label}] No threads available for commenting")
         return
 
     cfg = GenConfig(min_len=min_len, max_len=max_len)
