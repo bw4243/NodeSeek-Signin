@@ -9,7 +9,7 @@
 - `NS_COMMENT_ENABLED`：是否启用自动评论（默认 `false`）
 - `NS_COMMENT_CATEGORY_SLUG`：评论目标分类（当前固定为 `review`）
 - `NS_COMMENT_DAILY_LIMIT`：每账号每日评论上限（默认 2）
-- `COMMENT_RUN_AT`：评论调度时间（例如 `10:30` 或 `14:00-21:00`），不设默认为 `14:00-21:00`
+- `COMMENT_DELAY_MINUTES`：签到结束后等待的分钟数，默认 3，用于在启动评论前确保 Cookie 已更新。
 - `NS_COMMENT_DRY_RUN`：干跑（只生成不发布），默认 `true`
 - `NS_COMMENT_SAMPLE_COUNT`：示例评论抓取数量，默认 6
 - `NS_COMMENT_MIN_SAMPLE`：至少需要的“他人评论”数量，默认 2（不足则跳过）
@@ -24,11 +24,12 @@
 
 ## 运行方式
 
+- 与签到调度联动（推荐）：将 `NS_COMMENT_ENABLED` 设为 `true` 后，`scheduler.py` 会在签到完成后等待 `COMMENT_DELAY_MINUTES` 再自动执行 `commenter.py`，以复用刚刷新出的 Cookie。
 - 一次性执行（遵循干跑/正式由环境变量控制）：
   ```bash
   python commenter.py
   ```
-- 独立调度（与签到解耦）：
+- 独立调度（与签到解耦，仅供自定义需求）：
   ```bash
   python comment_scheduler.py
   ```

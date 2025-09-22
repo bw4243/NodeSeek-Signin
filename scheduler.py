@@ -6,10 +6,11 @@ import random
 import subprocess
 import re
 from datetime import timezone, timedelta
+from pathlib import Path
 
 # 测试程序时使用
-# from dotenv import load_dotenv
-# load_dotenv()
+from dotenv import load_dotenv
+load_dotenv()
 
 GMT8 = timezone(timedelta(hours=8))
 
@@ -94,6 +95,84 @@ def run_checkin_task():
     except Exception as e:
         print(f"执行签到任务时发生未知错误: {e}", flush=True)
 
+
+
+
+
+def has_available_cookie():
+    """?????????????? Cookie"""
+    env_cookie = (os.environ.get("NS_COOKIE", "") or "").strip()
+    if env_cookie:
+        return True
+
+    candidate_paths = []
+    candidate_paths.append(os.environ.get("LOCAL_COOKIE_PATH", "./NS_COOKIE.txt"))
+    candidate_paths.append(os.environ.get("COOKIE_FILE_PATH", "./cookie/NS_COOKIE.txt"))
+    candidate_paths.append("./cookie/NS_COOKIE.txt")
+
+    seen = set()
+    for path_str in candidate_paths:
+        if not path_str:
+            continue
+        if path_str in seen:
+            continue
+        seen.add(path_str)
+        try:
+            path = Path(path_str)
+            if path.exists():
+                content = path.read_text(encoding="utf-8", errors="ignore").strip()
+                if content:
+                    return True
+        except Exception as exc:
+            print(f"?? Cookie ?? {path_str} ???: {exc}", flush=True)
+    return False
+
+def get_comment_delay_seconds():
+    """读取评论延迟（单位：秒），默认 3 分钟"""
+    delay_env = os.environ.get("COMMENT_DELAY_MINUTES", "3").strip()
+    if not delay_env:
+        return 0.0
+    try:
+        delay_minutes = float(delay_env)
+    except ValueError:
+        print(f"警告: COMMENT_DELAY_MINUTES='{delay_env}' 非法，将使用默认值 3 分钟", flush=True)
+        delay_minutes = 3.0
+    if delay_minutes < 0:
+        delay_minutes = 0.0
+    return delay_minutes * 60
+
+
+def maybe_run_comment_followup():
+    """??????????????????"""
+    if os.environ.get("NS_COMMENT_ENABLED", "false").lower() != "true":
+        return
+
+    if not has_available_cookie():
+        print("?????? Cookie???????", flush=True)
+        return
+
+    delay_seconds = get_comment_delay_seconds()
+    if delay_seconds > 0:
+        minutes = delay_seconds / 60
+        print(f"?????? {minutes:.1f} ??????????? Cookie", flush=True)
+        time.sleep(delay_seconds)
+    else:
+        print("??????????????? Cookie", flush=True)
+
+    print(f"[{datetime.datetime.now(GMT8).strftime('%Y-%m-%d %H:%M:%S')}] ????????...", flush=True)
+    try:
+        subprocess.run([sys.executable, "commenter.py"], check=True)
+        print(f"[{datetime.datetime.now(GMT8).strftime('%Y-%m-%d %H:%M:%S')}] ????????", flush=True)
+    except FileNotFoundError:
+        print("??: 'commenter.py' ????????? scheduler.py ??????", flush=True)
+    except subprocess.CalledProcessError as e:
+        print(f"????????????: {e.returncode}", flush=True)
+    except Exception as e:
+        print(f"?????????????: {e}", flush=True)
+
+
+
+
 def main():
     """
     主调度循环。
@@ -120,6 +199,7 @@ def main():
             time.sleep(60)
 
         run_checkin_task()
+        maybe_run_comment_followup()
 
 if __name__ == "__main__":
     main()

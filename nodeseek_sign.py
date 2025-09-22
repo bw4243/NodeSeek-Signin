@@ -22,61 +22,14 @@ def detect_environment():
     # 优先检测是否在 Docker 环境中
     if os.environ.get("IN_DOCKER") == "true":
         return "docker"
-        
+
     # 检测是否在青龙环境中
     ql_path_markers = ['/ql/data/', '/ql/config/', '/ql/', '/.ql/']
-    in_ql_env = False
-    
-    for path in ql_path_markers:
-        if os.path.exists(path):
-            in_ql_env = True
-            break
-    
-    # 检测是否在GitHub Actions环境中
-    in_github_env = os.environ.get("GITHUB_ACTIONS") == "true" or (os.environ.get("GH_PAT") and os.environ.get("GITHUB_REPOSITORY"))
-    
-    if in_ql_env:
+    if any(os.path.exists(path) for path in ql_path_markers):
         return "qinglong"
-    elif in_github_env:
-        return "github"
-    else:
-        return "unknown"
 
-# ---------------- GitHub 变量写入函数 ----------------
-def save_cookie_to_github_var(var_name: str, cookie: str):
-    import requests as py_requests
-    token = os.environ.get("GH_PAT")
-    repo = os.environ.get("GITHUB_REPOSITORY")
-    if not token or not repo:
-        print("GH_PAT 或 GITHUB_REPOSITORY 未设置，跳过GitHub变量更新")
-        return False
-
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Accept": "application/vnd.github+json"
-    }
-
-    url_check = f"https://api.github.com/repos/{repo}/actions/variables/{var_name}"
-    url_create = f"https://api.github.com/repos/{repo}/actions/variables"
-
-    data = {"name": var_name, "value": cookie}
-
-    response = py_requests.patch(url_check, headers=headers, json=data)
-    if response.status_code == 204:
-        print(f"GitHub: {var_name} 更新成功")
-        return True
-    elif response.status_code == 404:
-        print(f"GitHub: {var_name} 不存在，尝试创建...")
-        response = py_requests.post(url_create, headers=headers, json=data)
-        if response.status_code == 201:
-            print(f"GitHub: {var_name} 创建成功")
-            return True
-        else:
-            print(f"GitHub创建失败: {response.status_code}, {response.text}")
-            return False
-    else:
-        print(f"GitHub设置失败: {response.status_code}, {response.text}")
-        return False
+    # ??????????
+    return "local"
 
 # ---------------- 青龙面板变量删除函数 ----------------
 def delete_ql_env(var_name: str):
@@ -141,41 +94,48 @@ def save_cookie_to_ql(var_name: str, cookie: str):
         print(f"青龙面板环境变量操作异常: {str(e)}")
         return False
 
-# ---------------- Docker Cookie 文件保存 ----------------
+# ---------------- Docker Cookie ???? ----------------
 COOKIE_FILE_PATH = "./cookie/NS_COOKIE.txt"
+LOCAL_COOKIE_FILE_PATH = os.environ.get("LOCAL_COOKIE_PATH", "./NS_COOKIE.txt")
 
-def save_cookie_to_file(cookie_str: str):
-    """将Cookie保存到文件"""
+def save_cookie_to_file(cookie_str: str, file_path: str = COOKIE_FILE_PATH):
+    """?Cookie?????"""
     try:
-        # 确保目录存在
-        os.makedirs(os.path.dirname(COOKIE_FILE_PATH), exist_ok=True)
-        with open(COOKIE_FILE_PATH, "w") as f:
+        # ??????
+        directory = os.path.dirname(file_path) or "."
+        os.makedirs(directory, exist_ok=True)
+        with open(file_path, "w") as f:
             f.write(cookie_str)
-        print(f"Cookie 已成功保存到文件: {COOKIE_FILE_PATH}")
+        print(f"Cookie ????????: {file_path}")
         return True
     except Exception as e:
-        print(f"保存Cookie到文件失败: {e}")
+        print(f"??Cookie?????: {e}")
         return False
 
-# ---------------- 统一变量保存函数 ----------------
+
+def save_cookie_to_local_file(cookie_str: str):
+    """??????? Cookie"""
+    return save_cookie_to_file(cookie_str, LOCAL_COOKIE_FILE_PATH)
+
+# ---------------- ???????? ----------------
 def save_cookie(var_name: str, cookie: str):
-    """根据当前环境保存Cookie到相应位置"""
+    """????????Cookie?????"""
     env_type = detect_environment()
-    
+
     if env_type == "docker":
-        print("检测到Docker环境，保存Cookie到文件...")
-        return save_cookie_to_file(cookie)
+        print("???Docker?????Cookie???..")
+        return save_cookie_to_file(cookie, COOKIE_FILE_PATH)
     elif env_type == "qinglong":
-        print("检测到青龙环境，保存变量到青龙面板...")
+        print("?????????????????...")
         return save_cookie_to_ql(var_name, cookie)
-    elif env_type == "github":
-        print("检测到GitHub环境，保存变量到GitHub Actions...")
-        return save_cookie_to_github_var(var_name, cookie)
+    elif env_type == "local":
+        print("??????????Cookie???..")
+        return save_cookie_to_local_file(cookie)
     else:
-        print("未检测到支持的环境，跳过变量保存")
+        print("????????????????")
         return False
 
-# ---------------- 登录逻辑 ----------------
+
 def session_login(user, password, solver_type, api_base_url, client_key):
     try:
         if solver_type.lower() == "yescaptcha":
@@ -416,20 +376,24 @@ if __name__ == "__main__":
     
     # 读取现有Cookie
     all_cookies = ""
-    if detect_environment() == "docker":
-        print(f"Docker环境，尝试从 {COOKIE_FILE_PATH} 读取Cookie...")
-        if os.path.exists(COOKIE_FILE_PATH):
+    env_type = detect_environment()
+    if env_type in ("docker", "local"):
+        file_path = COOKIE_FILE_PATH if env_type == "docker" else LOCAL_COOKIE_FILE_PATH
+        env_label = "Docker" if env_type == "docker" else "??"
+        print(f"{env_label}?????? {file_path} ??Cookie...")
+        if os.path.exists(file_path):
             try:
-                with open(COOKIE_FILE_PATH, "r") as f:
+                with open(file_path, "r") as f:
                     all_cookies = f.read().strip()
-                print("成功从文件加载Cookie。")
+                print("???????Cookie")
             except Exception as e:
-                print(f"从文件读取Cookie失败: {e}")
+                print(f"?????Cookie??: {e}")
         else:
-            print("Cookie文件不存在，将使用空Cookie。")
+            print("Cookie??????????Cookie")
     else:
         all_cookies = os.getenv("NS_COOKIE", "")
-        
+    
+    
     cookie_list = all_cookies.split("&")
     cookie_list = [c.strip() for c in cookie_list if c.strip()]
     

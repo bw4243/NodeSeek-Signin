@@ -5,6 +5,7 @@ import math
 import os
 import random
 import time
+from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from typing import List
 
@@ -249,16 +250,31 @@ def main():
     # 是否启用干跑
     dry_run = os.getenv("NS_COMMENT_DRY_RUN", "true").lower() == "true"
 
-    # 读取 cookie（与 nodeseek_sign.py 一致的来源优先级）
+    # ?? cookie?? nodeseek_sign.py ?????????
     COOKIE_FILE_PATH = "./cookie/NS_COOKIE.txt"
+    LOCAL_COOKIE_FILE_PATH = os.getenv("LOCAL_COOKIE_PATH", "./NS_COOKIE.txt")
     all_cookies = ""
+
+    candidate_paths = []
     if os.getenv("IN_DOCKER") == "true":
-        if os.path.exists(COOKIE_FILE_PATH):
-            try:
-                with open(COOKIE_FILE_PATH, "r", encoding="utf-8") as f:
-                    all_cookies = f.read().strip()
-            except Exception:
-                pass
+        candidate_paths.append(COOKIE_FILE_PATH)
+    else:
+        candidate_paths.extend([LOCAL_COOKIE_FILE_PATH, COOKIE_FILE_PATH])
+
+    for path_str in candidate_paths:
+        if not path_str:
+            continue
+        try:
+            path_obj = Path(path_str)
+            if path_obj.exists():
+                content = path_obj.read_text(encoding="utf-8", errors="ignore").strip()
+                if content:
+                    all_cookies = content
+                    print(f"?????? Cookie: {path_str}")
+                    break
+        except Exception as exc:
+            print(f"?? Cookie ?? {path_str} ??: {exc}")
+
     if not all_cookies:
         all_cookies = os.getenv("NS_COOKIE", "")
 

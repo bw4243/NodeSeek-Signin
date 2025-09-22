@@ -9,6 +9,9 @@ from datetime import timezone, timedelta
 
 GMT8 = timezone(timedelta(hours=8))
 
+# 提示: scheduler.py 已支持在签到完成后自动执行评论任务。
+# 本脚本仅用于需要独立调度评论的高级场景。
+
 
 def get_run_config(var_name: str, default_range: str) -> tuple[str, str]:
     """
